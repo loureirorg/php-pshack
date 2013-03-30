@@ -4,9 +4,9 @@
  * pshack.php
  *		Biblioteca para acessar a plataforma PagSeguro emulando um navegador
  * 
- * PS: caso queira alguma funÁ„o que n„o esteja aqui, mas exista no site, ou 
- * tenha encontrado algum bug ou possua d˙vida ou tenha sugestıes, favor criar 
- * um tÌcket em:
+ * PS: caso queira alguma fun√ß√£o que n√£o esteja aqui, mas exista no site, ou 
+ * tenha encontrado algum bug ou possua d√∫vida ou tenha sugest√µes, favor criar 
+ * um t√≠cket em:
  *  https://github.com/loureirorg/php-pshack/issues
  *
  *
@@ -19,11 +19,11 @@
  *
  *-------------------------------------------------------------------------
  *
- * FUN«’ES:
- *   pshack\config: configura usu·rio e senha
- *   pshack\extrato_financeiro($inicio, $termino): extrai um relatÛrio de 
- * movimentaÁ„o financeira (a receber, bloqueado, disponÌvel)
- *   pshack\detalhes($transaction_id): detalhes de uma transaÁ„o
+ * FUN√á√ïES:
+ *   pshack\config: configura usu√°rio e senha
+ *   pshack\extrato_financeiro($inicio, $termino): extrai um relat√≥rio de 
+ * movimenta√ß√£o financeira (a receber, bloqueado, dispon√≠vel)
+ *   pshack\detalhes($transaction_id): detalhes de uma transa√ß√£o
  *   pshack\estorno($transaction_id): estorna uma compra
  *
  *-------------------------------------------------------------------------
@@ -42,7 +42,7 @@
 namespace pshack;
 
 
-// configuraÁıes da biblioteca:
+// configura√ß√µes da biblioteca:
 function config()
 {
 	global $__ps_config;
@@ -54,31 +54,31 @@ function config()
 }
 
 
-// funÁ„o para entrar no pagseguro. usada internamente pelas funÁıes p˙blicas,
-// n„o h· necessidade de ser chamada diretamente.
+// fun√ß√£o para entrar no pagseguro. usada internamente pelas fun√ß√µes p√∫blicas,
+// n√£o h√° necessidade de ser chamada diretamente.
 function login()
 {
-	// destruÌmos a sess„o anterior (do pagseguro):
+	// destru√≠mos a sess√£o anterior (do pagseguro):
 	if (session_id() == "") {
 		session_start();
 	}
 	unset($_SESSION["__ps_http_read_cookie"]);
 	
-	// na p·gina inicial, pega form:
+	// na p√°gina inicial, pega form:
 	$html = http_read("https://pagseguro.uol.com.br/");
 	if (!preg_match("#<form .* action=[\"']([^ \"']*)[^>]*(.*)</form>#s", $html, $matches)) {
-		return	"Form de login n„o encontrado";
+		return	"Form de login n√£o encontrado";
 	}
 	$url = "https://pagseguro.uol.com.br/". $matches[1];
 	$str_campos = $matches[2];
 	
 	// campos do form:
 	if (!preg_match_all("#<input.*name=[\"']([^\"']*)[\"'] *(value=[\"']([^\"']*)[\"'])?#", $str_campos, $matches)) {
-		return	"Campos de login n„o encontrados";
+		return	"Campos de login n√£o encontrados";
 	}
 	$form = array_combine($matches[1], $matches[3]);
 	
-	// usu·rio e senha s„o os campos do tipo text e password respectivamente:
+	// usu√°rio e senha s√£o os campos do tipo text e password respectivamente:
 	global $__ps_config;
 	$field_user = preg_match("#<input.* type=[\"']text[\"'] name=[\"']([^\"']*)[\"']#", $str_campos, $matches)? $matches[1]: "user";
 	$field_pass = preg_match("#<input.* type=[\"']password[\"'] name=[\"']([^\"']*)[\"']#", $str_campos, $matches)? $matches[1]: "pass";
@@ -91,25 +91,25 @@ function login()
 }
 
 
-// retorna um id interno da p·gina. usada internamente pelas funÁıes p˙blicas,
-// n„o h· necessidade de ser chamada diretamente.
+// retorna um id interno da p√°gina. usada internamente pelas fun√ß√µes p√∫blicas,
+// n√£o h√° necessidade de ser chamada diretamente.
 function find_id($transaction_id)
 {
 	// exemplo de transaction_id: 7C78FDFB90214361B8F266502BEE27B9
-	// Normalizamos, retirando caracteres inv·lidos e passando para min˙sculas:
+	// Normalizamos, retirando caracteres inv√°lidos e passando para min√∫sculas:
 	$transaction_id = preg_replace("/[^0-9A-Z]/", "", strtoupper($transaction_id));
 	
-	// utilizamos o cachÈ:
+	// utilizamos o cach√©:
 	if (apc_exists($transaction_id)) {
 		return	unserialize(apc_fetch($transaction_id));
 	}
 	
-	// caso n„o esteja no cachÈ, descobrimos os dias que n„o est„o no cachÈ e pesquisamos (agrupados por perÌodos):
-	// buscamos de hoje atÈ o menor dia que n„o esteja em cachÈ (max 120 dias):
+	// caso n√£o esteja no cach√©, descobrimos os dias que n√£o est√£o no cach√© e pesquisamos (agrupados por per√≠odos):
+	// buscamos de hoje at√© o menor dia que n√£o esteja em cach√© (max 120 dias):
 	$delta = 0;
 	while ($delta <= 120) 
 	{
-		// acha prÛximo dia sem cachÈ:
+		// acha pr√≥ximo dia sem cach√©:
 		$termino = date("Ymd", time() - (24 * 60* 60 * $delta));
 		while ($delta <= 120) 
 		{
@@ -121,7 +121,7 @@ function find_id($transaction_id)
 			$delta++;
 		}
 		
-		// acha prÛximo dia com cachÈ:
+		// acha pr√≥ximo dia com cach√©:
 		$inicio = date("Ymd", time() - (24 * 60* 60 * $delta));
 		while ($delta <= 120) 
 		{
@@ -135,49 +135,49 @@ function find_id($transaction_id)
 			$delta++;
 		}
 		
-		// alimenta cachÈ e verifica se j· È suficiente:
+		// alimenta cach√© e verifica se j√° √© suficiente:
 		extrato_financeiro($inicio, $termino);
 		if (apc_exists($transaction_id)) {
 			return	unserialize(apc_fetch($transaction_id));
 		}
 	}
 	
-	// n„o achou, buscamos hoje (pois ainda n„o encerrou, logo cache pode estar desatualizado)
+	// n√£o achou, buscamos hoje (pois ainda n√£o encerrou, logo cache pode estar desatualizado)
 	extrato_financeiro(date("Ymd"), date("Ymd"));
 	if (apc_exists($transaction_id)) {
 		return	unserialize(apc_fetch($transaction_id));
 	}
 	
-	// n„o achou nem hoje, retorna que n„o existe nos ˙ltimos 120 dias
+	// n√£o achou nem hoje, retorna que n√£o existe nos √∫ltimos 120 dias
 	return	false;
 }
 
 
-// pega detalhes de uma transaÁ„o:
+// pega detalhes de uma transa√ß√£o:
 function detalhes($transaction_id)
 {
 	// exemplo de transaction_id: 7C78FDFB90214361B8F266502BEE27B9
-	// Normalizamos, retirando caracteres inv·lidos e passando para min˙sculas:
+	// Normalizamos, retirando caracteres inv√°lidos e passando para min√∫sculas:
 	$transaction_id = preg_replace("/[^0-9A-Z]/", "", strtoupper($transaction_id));
 	
-	// converte id de transaÁ„o para id interno:
+	// converte id de transa√ß√£o para id interno:
 	$id = find_id($transaction_id);
 	if (!$id) {
-		return	"N„o achei a transaÁ„o";
+		return	"N√£o achei a transa√ß√£o";
 	}
 	
-	// pega html da p·gina de detalhes:
+	// pega html da p√°gina de detalhes:
 	$html = http_read("https://pagseguro.uol.com.br/transaction/details.jhtml?id=$id");
 	
-	// se html n„o È o esperado tenta logar novamente:
+	// se html n√£o √© o esperado tenta logar novamente:
 	if (!preg_match("#<div id='codtrans'>(.*?)</div>#s", $html, $matches)) 
 	{
 		login();
 		$html = http_read("https://pagseguro.uol.com.br/transaction/details.jhtml?id=$id");
 		
-		// se ainda assim n„o È o esperado, sai fora
+		// se ainda assim n√£o √© o esperado, sai fora
 		if (!preg_match("#<div id='codtrans'>(.*?)</div>#s", $html, $matches)) {
-			return	"P·gina n„o est· em formato esperado";
+			return	"P√°gina n√£o est√° em formato esperado";
 		}
 	}
 	
@@ -194,13 +194,13 @@ function detalhes($transaction_id)
 	foreach ($itens as $nome => $regex) 
 	{
 		preg_match($regex, $html, $matches);
-		$tmp_ = preg_replace("#(</?strong>|</?b>|</?a.*?>|</?font.*?>|</?span.*?>|<!--.*-->)#s", "", $matches[1]); // retira formataÁ„o
+		$tmp_ = preg_replace("#(</?strong>|</?b>|</?a.*?>|</?font.*?>|</?span.*?>|<!--.*-->)#s", "", $matches[1]); // retira formata√ß√£o
 		$tmp = extract_data($tmp_);
 		$dados[$nome] = $tmp;
 	}
 	
 	// normaliza dados antes de retornar:
-	// seÁ„o "resumo":
+	// se√ß√£o "resumo":
 	$dados["resumo"] = $dados["resumo"]["dl"]["dd"];
 	preg_match("#\(([^\)]*)#", $dados["resumo"][6], $matches); // parcelamento
 	$parcelamento = $matches[1];
@@ -215,9 +215,9 @@ function detalhes($transaction_id)
 		"parcelamento"	=> $parcelamento,
 	);
 	
-	// seÁ„o "comprador":
+	// se√ß√£o "comprador":
 	$dados["comprador"] = $dados["comprador"]["dl"]["dd"];
-	preg_match("#\(([^\)]*)#", $dados["comprador"][2], $matches); // pontuaÁ„o
+	preg_match("#\(([^\)]*)#", $dados["comprador"][2], $matches); // pontua√ß√£o
 	$pontuacao_percentual = preg_replace("#[^0-9]#", "", $matches[1]) + 0;
 	$dados["comprador"] = array(
 		"nome"		=> trim($dados["comprador"][0]),
@@ -227,7 +227,7 @@ function detalhes($transaction_id)
 		"pontuacao_perc" => $pontuacao_percentual,
 	);
 	
-	// seÁ„o "carrinho"
+	// se√ß√£o "carrinho"
 	$resumo = array(
 		"frete" => str_replace(",", ".", preg_replace("#[^0-9,]#", "", $dados["carrinho"]["tfoot"]["tr"][0]["td"])) + 0,
 		"total" => str_replace(",", ".", preg_replace("#[^0-9,]#", "", $dados["carrinho"]["tfoot"]["tr"][1]["td"])) + 0,
@@ -253,7 +253,7 @@ function detalhes($transaction_id)
 		"itens"		=> $norm,
 	);
 	
-	// seÁ„o "endereÁo"
+	// se√ß√£o "endere√ßo"
 	$dados["endereco"] = $dados["endereco"]["dl"]["dd"];
 	$dados["endereco"] = array(
 		"cep"		=> trim($dados["endereco"][0]),
@@ -264,7 +264,7 @@ function detalhes($transaction_id)
 		"estado"	=> trim($dados["endereco"][5]),
 	);
 	
-	// seÁ„o "financeiro"
+	// se√ß√£o "financeiro"
 	$dados["financeiro"] = $body = array_map(create_function('$i', 'return $i[td];'), $dados["financeiro"]["table"]["tbody"]["tr"]);
 	$norm = array();
 	foreach ($dados["financeiro"] as $item)
@@ -279,7 +279,7 @@ function detalhes($transaction_id)
 	}
 	$dados["financeiro"] = $norm;
 	
-	// seÁ„o "status"
+	// se√ß√£o "status"
 	$dados["status"] = $body = array_map(create_function('$i', 'return $i[td];'), $dados["status"]["table"]["tbody"]["tr"]);
 	$norm = array();
 	foreach ($dados["status"] as $item)
@@ -306,61 +306,61 @@ function detalhes($transaction_id)
 function estorno($transaction_id)
 {
 	// exemplo de transaction_id: 7C78FDFB90214361B8F266502BEE27B9
-	// Normalizamos, retirando caracteres inv·lidos e passando para min˙sculas:
+	// Normalizamos, retirando caracteres inv√°lidos e passando para min√∫sculas:
 	$transaction_id = preg_replace("/[^0-9A-Z]/", "", strtoupper($transaction_id));
 	
-	// converte id de transaÁ„o para id interno:
+	// converte id de transa√ß√£o para id interno:
 	$id = find_id($transaction_id);
 	if (!$id) {
-		return	"N„o achei a transaÁ„o";
+		return	"N√£o achei a transa√ß√£o";
 	}
 	
-	// pega html da p·gina de detalhes:
+	// pega html da p√°gina de detalhes:
 	$html = http_read("https://pagseguro.uol.com.br/transaction/details.jhtml?id=$id");
 	
-	// se html n„o È o esperado tenta logar novamente:
+	// se html n√£o √© o esperado tenta logar novamente:
 	if (!preg_match("#<div id='codtrans'>(.*?)</div>#s", $html, $matches)) 
 	{
 		login();
 		$html = http_read("https://pagseguro.uol.com.br/transaction/details.jhtml?id=$id");
 		
-		// se ainda assim n„o È o esperado, sai fora
+		// se ainda assim n√£o √© o esperado, sai fora
 		if (!preg_match("#<div id='codtrans'>(.*?)</div>#s", $html, $matches)) {
-			return	"P·gina n„o est· no formato esperado";
+			return	"P√°gina n√£o est√° no formato esperado";
 		}
 	}
 	
 	// pega form de estorno:
 	if (!preg_match("#<form id=\"refund\".* action=[\"']([^ \"']*)[^>]*(.*)</form>#s", $html, $matches)) {
-		return	"Form de estorno n„o encontrado";
+		return	"Form de estorno n√£o encontrado";
 	}
 	$url = "https://pagseguro.uol.com.br/". $matches[1];
 	$str_campos = $matches[2];
 	
 	// campos do form:
 	if (!preg_match_all("#<input.*name=[\"']([^\"']*)[\"'] *(value=[\"']([^\"']*)[\"'])?#", $str_campos, $matches)) {
-		return	"Campos de estorno n„o encontrados";
+		return	"Campos de estorno n√£o encontrados";
 	}
 	$form = array_combine($matches[1], $matches[3]);
 	
 	// faz a chamada de estorno:
 	$html = http_read($url, http_build_query($form));
-	// return	preg_match("#O pagamento ser· estornado na prÛxima fatura do cart„o de crÈdito do cliente.#", $html, $matches);
+	// return	preg_match("#O pagamento ser√° estornado na pr√≥xima fatura do cart√£o de cr√©dito do cliente.#", $html, $matches);
 	
 	// fim:
 	return	true;
 }
 
-// funÁ„o que simula o acesso ao item "Extrato Financeiro" do site:
+// fun√ß√£o que simula o acesso ao item "Extrato Financeiro" do site:
 // PS: datas no formato iso: AAAAMMDD
 function extrato_financeiro($inicio, $termino)
 {
-	// termino È maior que inicio ou data È inv·lida, retorna false representando erro:
+	// termino √© maior que inicio ou data √© inv√°lida, retorna false representando erro:
 	if (($ts_termino < $ts_inicio) OR !\DateTime::createFromFormat("Ymd", $termino) OR !\DateTime::createFromFormat("Ymd", $inicio)) {
 		return	false;
 	}
 	
-	// chama p·gina e pega o html:
+	// chama p√°gina e pega o html:
 	$form = array(
 		"comboPeriod"	=> "120",
 		"finalDate"		=> \DateTime::createFromFormat("Ymd", $termino)->format("d/m/Y"),
@@ -370,20 +370,20 @@ function extrato_financeiro($inicio, $termino)
 	);
 	$html = http_read("https://pagseguro.uol.com.br/statement/period.jhtml", http_build_query($form));
 	
-	// verificamos se sess„o n„o encerrou e refaz login se necess·rio
+	// verificamos se sess√£o n√£o encerrou e refaz login se necess√°rio
 	if (!preg_match('#table.*id="available_extract"([^>]*)>(.*?)</table>#s', $html, $matches))
 	{
 		login();
 		$html = http_read("https://pagseguro.uol.com.br/statement/period.jhtml", http_build_query($form));
 		
-		// ainda n„o È o esperado, sai fora
+		// ainda n√£o √© o esperado, sai fora
 		if (!preg_match('#table.*id="available_extract"([^>]*)>(.*?)</table>#s', $html, $matches)) {
 			return	false;
 		}
 	}
 	
-	// dados extraÌdos do html: s„o 3 tabelas a serem lidas: 
-	// disponÌvel (available_extract), a receber (escrow_extract), bloqueado (contest_extract):
+	// dados extra√≠dos do html: s√£o 3 tabelas a serem lidas: 
+	// dispon√≠vel (available_extract), a receber (escrow_extract), bloqueado (contest_extract):
 	$dados = array();
 	$tables = array("disponivel" => "available_extract", "receber" => "escrow_extract", "bloqueado" => "contest_extract");	
 	foreach ($tables as $ntable => $table)
@@ -397,18 +397,18 @@ function extrato_financeiro($inicio, $termino)
 		}
 		
 		// extrai dados da tabela html:
-		$tabela_html = preg_replace("#(<b>|</b>|<a href='|</a>|<font.*?>|</font>| class=\"[^\"]*\"|<span.*?>|</span>)#s", "", $matches[2]); // retira formataÁ„o
+		$tabela_html = preg_replace("#(<b>|</b>|<a href='|</a>|<font.*?>|</font>| class=\"[^\"]*\"|<span.*?>|</span>)#s", "", $matches[2]); // retira formata√ß√£o
 		$tabela_html = preg_replace("#(' title=\"[^\"]*\">)#s", ";", $tabela_html); // link id
 		$tabela = extract_data($tabela_html);
 
-		// cabeÁalho e corpo:
+		// cabe√ßalho e corpo:
 		$head = $tabela["thead"]["tr"]["th"];
 		if (array_key_exists("td", $tabela["tbody"]["tr"])) {
-			$tabela["tbody"]["tr"] = array($tabela["tbody"]["tr"]);// sÛ tem 1 item
+			$tabela["tbody"]["tr"] = array($tabela["tbody"]["tr"]);// s√≥ tem 1 item
 		}
 		$body = array_map(create_function('$i', 'return $i[td];'), $tabela["tbody"]["tr"]);
 		
-		// normaliza data (p/ iso), n˙meros. Coloca informaÁ„o normalizada em body:
+		// normaliza data (p/ iso), n√∫meros. Coloca informa√ß√£o normalizada em body:
 		foreach ($body as $k => $v)
 		{
 			$id_chave = explode(";", trim($v[1]));
@@ -427,7 +427,7 @@ function extrato_financeiro($inicio, $termino)
 			);
 		}
 		
-		// separa dados extraÌdos e normalizados ($body) em resumos (saldo anterior / saldo_final) e listagem analÌtica:
+		// separa dados extra√≠dos e normalizados ($body) em resumos (saldo anterior / saldo_final) e listagem anal√≠tica:
 		$dados[$ntable] = array(
 			"saldo_anterior" => array_shift($body), 
 			"saldo_final" => array_pop($body), 
@@ -442,7 +442,7 @@ function extrato_financeiro($inicio, $termino)
 		$lst_itens = array_merge($lst_itens, $table["listagem"]);
 	}
 	
-	// cada dia È um Ìndice
+	// cada dia √© um √≠ndice
 	$lst_index = array();
 	foreach ($lst_itens as $item) 
 	{
@@ -450,7 +450,7 @@ function extrato_financeiro($inicio, $termino)
 		$lst_index[$dia][$item[2]] = $item[3];
 	}
 	
-	// dias que n„o tiveram movimentaÁ„o devem ficar em cachÈ tambÈm
+	// dias que n√£o tiveram movimenta√ß√£o devem ficar em cach√© tamb√©m
 	$ts = \DateTime::createFromFormat("Ymd", $inicio)->getTimestamp();
 	$ts_termino = \DateTime::createFromFormat("Ymd", $termino)->getTimestamp();
 	while ($ts <= $ts_termino) 
@@ -462,7 +462,7 @@ function extrato_financeiro($inicio, $termino)
 		}
 	}
 	
-	// armazena cada Ìndice. Considera o usu·rio logado para evitar conflito de cachÈs
+	// armazena cada √≠ndice. Considera o usu√°rio logado para evitar conflito de cach√©s
 	foreach ($lst_index as $dia => $vetor)
 	{
 		$index_name = md5($dia. $_SESSION["__ps_user"]);
@@ -475,7 +475,7 @@ function extrato_financeiro($inicio, $termino)
 
 
 /***
- *** FUN«’ES AUXILIARES
+ *** FUN√á√ïES AUXILIARES
  ***/
  
 function array_combine_($keys, $values)
@@ -498,7 +498,7 @@ function extract_data($str)
 		array_map((__NAMESPACE__. '\extract_data'), array_combine_($matches[1], $matches[2])));
 }
 
-// faz uma requisiÁ„o http:
+// faz uma requisi√ß√£o http:
 // args: $url[, $post_data]
 function http_read()
 {
@@ -573,7 +573,7 @@ function http_read()
 		$_SESSION["__ps_http_read_cookie"] = array_merge($_SESSION["__ps_http_read_cookie"], array_combine($matches[1], $matches[2]));
 	}
 	
-	// fim: se resposta foi um "Location", retorna p·gina apontada. Se n„o, converte para utf8 e retorna body
+	// fim: se resposta foi um "Location", retorna p√°gina apontada. Se n√£o, converte para utf8 e retorna body
 	if (preg_match('#Location: (.*)?#', $head, $matches)) {
 		return	http_read($matches[1]);
 	}
@@ -585,10 +585,10 @@ function http_read()
 	return	$body;
 }
 
-// invalida (exclui) um Ìndice e seu vetor de dados
+// invalida (exclui) um √≠ndice e seu vetor de dados
 function cache_invalidate_index($index_name)
 {
-	// se existe, destrÛi Ìndice e dados indexados:
+	// se existe, destr√≥i √≠ndice e dados indexados:
 	if (apc_exists($index_name))
 	{
 		$keys = unserialize(apc_fetch($index_name));
@@ -599,7 +599,7 @@ function cache_invalidate_index($index_name)
 	}
 }
 
-// salva um Ìndice e seu vetor de dados:
+// salva um √≠ndice e seu vetor de dados:
 // args: $index_name, $index_data[, ttl]
 // exemplo de args I: ("idx_teste", array("a", "b"))
 // exemplo de args II: ("idx_teste", array("x" => "a", "y" => "b"))
@@ -610,25 +610,25 @@ function cache_update_index()
 	$index_data = func_get_arg(1);
 	$ttl = (func_num_args() >= 3)? func_get_arg(2): 0;
 
-	// se j· existe, destrÛi Ìndice e dados indexados:
+	// se j√° existe, destr√≥i √≠ndice e dados indexados:
 	cache_invalidate_index($index_name);
 	
-	// insere Ìndice e seus dados:
+	// insere √≠ndice e seus dados:
 	$keys = array();
 	foreach ($index_data as $chave => $item) 
 	{
 		$value = serialize($item);
-		$key = preg_match("#^[0-9]*$#", $chave)? md5($value): $chave; // se Ìndice È uma chave, aproveita ela, sen„o gera com base no conte˙do
+		$key = preg_match("#^[0-9]*$#", $chave)? md5($value): $chave; // se √≠ndice √© uma chave, aproveita ela, sen√£o gera com base no conte√∫do
 		$keys[] = $key;
 		apc_store($key, $value, $ttl);
 	}
 	apc_store($index_name, serialize($keys), $ttl);
 }
 
-// pega o vetor de dados de um Ìndice:
+// pega o vetor de dados de um √≠ndice:
 function cache_fetch_index($index_name)
 {
-	// se obteve sucesso retorna um vetor com os dados, se n„o, retorna "false":
+	// se obteve sucesso retorna um vetor com os dados, se n√£o, retorna "false":
 	if (!apc_exists($index_name)) {
 		return	false;
 	}
