@@ -1,5 +1,5 @@
 #php-pshack
-
+[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/d550557bc8d2922c15da7d88dfc9882c "githalytics.com")](http://githalytics.com/loureirorg/php-pshack)
 Biblioteca para acessar a plataforma PagSeguro emulando um navegador (ps-hack)
 
 ##Funções
