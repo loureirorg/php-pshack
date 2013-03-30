@@ -39,7 +39,7 @@
  *
  *-------------------------------------------------------------------------
  */
-//namespace pshack;
+namespace pshack;
 
 
 // configurações da biblioteca:
