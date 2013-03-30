@@ -163,7 +163,7 @@ function detalhes($transaction_id)
 	// converte id de transação para id interno:
 	$id = find_id($transaction_id);
 	if (!$id) {
-		return	"Não achei a transação";
+		return	"Não achei a transação ($transaction_id)";
 	}
 	
 	// pega html da página de detalhes:
@@ -384,62 +384,89 @@ function extrato_financeiro($inicio, $termino)
 	
 	// dados extraídos do html: são 3 tabelas a serem lidas: 
 	// disponível (available_extract), a receber (escrow_extract), bloqueado (contest_extract):
-	$dados = array();
-	$tables = array("disponivel" => "available_extract", "receber" => "escrow_extract", "bloqueado" => "contest_extract");	
-	foreach ($tables as $ntable => $table)
-	{
-		// pega tabela html:
-		$ok = preg_match('#table.*id="available_extract"([^>]*)>(.*?)</table>#s', $html, $matches); // pega somente a tabela
-		if (!$ok) 
+	$dados_fim = array();
+	$pagina = 1;
+	do {
+		$dados = array();
+		$tables = array("disponivel" => "available_extract", "receber" => "escrow_extract", "bloqueado" => "contest_extract");	
+		foreach ($tables as $ntable => $table)
 		{
-			$dados[$ntable] = array("saldo_anterior" => null, "saldo_final" => null, "listagem" => array());
-			continue;
-		}
-		
-		// extrai dados da tabela html:
-		$tabela_html = preg_replace("#(<b>|</b>|<a href='|</a>|<font.*?>|</font>| class=\"[^\"]*\"|<span.*?>|</span>)#s", "", $matches[2]); // retira formatação
-		$tabela_html = preg_replace("#(' title=\"[^\"]*\">)#s", ";", $tabela_html); // link id
-		$tabela = extract_data($tabela_html);
+			// pega tabela html:
+			$ok = preg_match('#table.*id="'. $table. '"([^>]*)>(.*?)</table>#s', $html, $matches); // pega somente a tabela
+			if (!$ok) 
+			{
+				$dados[$ntable] = array();
+				continue;
+			}
+			
+			// extrai dados da tabela html:
+			$tabela_html = preg_replace("#(<b>|</b>|<a href='|</a>|<font.*?>|</font>| class=\"[^\"]*\"|<span.*?>|</span>)#s", "", $matches[2]); // retira formatação
+			$tabela_html = preg_replace("#(' title=\"[^\"]*\">)#s", ";", $tabela_html); // link id
+			$tabela = extract_data($tabela_html);
 
-		// cabeçalho e corpo:
-		$head = $tabela["thead"]["tr"]["th"];
-		if (array_key_exists("td", $tabela["tbody"]["tr"])) {
-			$tabela["tbody"]["tr"] = array($tabela["tbody"]["tr"]);// só tem 1 item
+			// cabeçalho e corpo:
+			$head = $tabela["thead"]["tr"]["th"];
+			if (array_key_exists("td", $tabela["tbody"]["tr"])) {
+				$tabela["tbody"]["tr"] = array($tabela["tbody"]["tr"]);// só tem 1 item
+			}
+			$body = array_map(create_function('$i', 'return $i[td];'), $tabela["tbody"]["tr"]);
+			
+			// normaliza data (p/ iso), números. Coloca informação normalizada em body:
+			foreach ($body as $k => $v)
+			{
+				$id_chave = explode(";", trim($v[1]));
+				preg_match("#id=(.*)#", $id_chave[0], $matches); // extrai o id do link
+				$id = $matches[1];
+				$ts = \DateTime::createFromFormat("d/m/Y H:i", $v[0]);
+				$dia = $ts? $ts->format("Ymd\THi"): "";
+				$body[$k] = array(
+					$dia,
+					$id_chave[0],
+					$id_chave[1],
+					$id,
+					trim($v[2]),
+					str_replace(",", ".", str_replace(".", "", $v[3])) + 0,
+					str_replace(",", ".", str_replace(".", "", $v[4])) + 0,
+				);
+			}
+			
+			// separa dados extraídos e normalizados ($body) em resumos (saldo anterior / saldo_final) e listagem analítica:
+			$saldo_anterior = array_shift($body); // todo: retornar ao usuario
+			$saldo_final = array_pop($body); // todo: retornar ao usuario
+			$dados[$ntable] = $body;
 		}
-		$body = array_map(create_function('$i', 'return $i[td];'), $tabela["tbody"]["tr"]);
 		
-		// normaliza data (p/ iso), números. Coloca informação normalizada em body:
-		foreach ($body as $k => $v)
+		// antes de ir para próxima página, juntamos com nosso somatório:
+		foreach ($dados as $k => $v) 
 		{
-			$id_chave = explode(";", trim($v[1]));
-			preg_match("#id=(.*)#", $id_chave[0], $matches); // extrai o id do link
-			$id = $matches[1];
-			$ts = \DateTime::createFromFormat("d/m/Y H:i", $v[0]);
-			$dia = $ts? $ts->format("Ymd\THi"): "";
-			$body[$k] = array(
-				$dia,
-				$id_chave[0],
-				$id_chave[1],
-				$id,
-				trim($v[2]),
-				str_replace(",", ".", str_replace(".", "", $v[3])) + 0,
-				str_replace(",", ".", str_replace(".", "", $v[4])) + 0,
-			);
+			if (!isset($dados_fim[$k])) {
+				$dados_fim[$k] = array();
+			}
+			$dados_fim[$k] = array_merge($dados_fim[$k], $v);
 		}
 		
-		// separa dados extraídos e normalizados ($body) em resumos (saldo anterior / saldo_final) e listagem analítica:
-		$dados[$ntable] = array(
-			"saldo_anterior" => array_shift($body), 
-			"saldo_final" => array_pop($body), 
-			"listagem" => $body
-		);
-	}
+		// próxima página
+		$pagina++;
+		$form["page"] = $pagina;
+		$form["pageCmd"] = "page";
+		$form["paginatorSize"] = 1651;
+		
+		// detecta fim de paginação (páginas ficam iguais)
+		$old_md5 = md5($html);
+		$html = http_read("https://pagseguro.uol.com.br/statement/period.jhtml", http_build_query($form));
+		$ok = ($old_md5 != md5($html));
+		
+		// proteção contra loops infinitos caso alterem a página
+		if ($pagina > 40) { 
+			$ok = false;
+		}
+	} while ($ok);
 
 	// aproveitamos para alimentar cache de ids:
 	// agrupamos as listagens das 3 tabelas:
 	$lst_itens = array();
-	foreach ($dados as $table) {
-		$lst_itens = array_merge($lst_itens, $table["listagem"]);
+	foreach ($dados_fim as $table) {
+		$lst_itens = array_merge($lst_itens, $table);
 	}
 	
 	// cada dia é um índice
@@ -469,8 +496,8 @@ function extrato_financeiro($inicio, $termino)
 		cache_update_index($index_name, $vetor, 0);
 	}
 	
-	// fim: retorna dados das 3 tabelas
-	return	$dados;
+	// fim: retorna dados das 3 tabelas de todas as páginas
+	return	$dados_fim;
 }
 
 
